@@ -1,0 +1,21 @@
+@startuml
+discovery -> discoveryServer: bootstrap.NewServer(serverArgs)
+discoveryServer -> discoveryServer: init "model.Environment" struct
+discoveryServer -> discoveryServer: init Aggregate controller for serviceDiscovery
+discoveryServer -> XDSServer: xds.NewDiscoveryServer
+XDSServer -> discoveryServer: ~*DiscoveryServer
+discoveryServer --> discoveryServer: initSecureWebhookServer
+discoveryServer --> discoveryServer: initSidecarInjector
+discoveryServer --> discoveryServer: initConfigValidation
+discoveryServer -> discoveryServer: initIstiodAdminServer
+discoveryServer -> discoveryServer: ...
+discoveryServer -> discovery
+discovery-> discoveryServer: discoveryServer.Start(stop)
+discoveryServer -> discoveryServer: s.server.Start
+discoveryServer -> discoveryServer: s.XDSServer.CachesSynced
+discoveryServer --> discoveryServer: s.secureGrpcServer.Serve
+discoveryServer --> discoveryServer: s.grpcServer.Serve
+discoveryServer -> discoveryServer: s.httpServer.Serve
+discoveryServer --> discoveryServer: s.httpsServer.ServeTLS
+discoveryServer -> discovery
+@enduml

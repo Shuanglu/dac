@@ -1,0 +1,10 @@
+@startuml
+"pilot-discovery" -> discovery 
+discovery -> discoveryServer: bootstrap.NewServer
+discoveryServer -> discoveryServer: NewServer
+discoveryServer -> discovery: ~*Server
+discovery-> discoveryServer: discoveryServer.Start
+discoveryServer -> discoveryServer: Start
+discoveryServer -> discovery
+discovery -> "pilot-discovery"
+@enduml
