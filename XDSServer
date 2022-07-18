@@ -1,5 +1,11 @@
 @startuml
 discoveryServer -> XDSServer: xds.NewDiscoveryServer
-XDSServer -> XDSServer: 
 XDSServer -> discoveryServer: ~*DiscoveryServer
+discoveryServer -> XDSServer: s.server.Start
+XDSServer -> XDSServer: Start
+XDSServer -> WorkloadEntryController: go s.WorkloadEntryController.Run
+XDSServer -> XDSServer: go s.handleUpdates
+XDSServer -> XDSServer:	go s.periodicRefreshMetrics
+XDSServer -> XDSServer:	go s.sendPushes
+XDSServer -> discoveryServer
 @enduml

@@ -11,7 +11,9 @@ discoveryServer -> discoveryServer: initIstiodAdminServer
 discoveryServer -> discoveryServer: ...
 discoveryServer -> discovery
 discovery-> discoveryServer: discoveryServer.Start(stop)
-discoveryServer -> discoveryServer: s.server.Start
+discoveryServer -> components: s.server.Start
+components -> components: s.<component>.Run
+components -> discoveryServer
 discoveryServer -> discoveryServer: s.XDSServer.CachesSynced
 discoveryServer --> discoveryServer: s.secureGrpcServer.Serve
 discoveryServer --> discoveryServer: s.grpcServer.Serve
