@@ -4,16 +4,67 @@ discoveryServer -> discoveryServer: init "model.Environment" struct
 discoveryServer -> discoveryServer: init Aggregate controller for serviceDiscovery
 discoveryServer -> XDSServer: xds.NewDiscoveryServer
 XDSServer -> discoveryServer: ~*DiscoveryServer
-discoveryServer --> discoveryServer: initSecureWebhookServer
-discoveryServer --> discoveryServer: initSidecarInjector
+discoveryServer -> discoveryServer: ...
+discoveryServer -> discoveryServer: s.initControllers
+group s.initControllers
+  discoveryServer -> discoveryServer: s.initConfigController
+  group s.initConfigController
+    alt len(meshConfig.ConfigSources) > 0 
+      discoveryServer -> discoveryServer: s.initConfigSources
+    else args.RegistryOptions.FileDir != ""
+      discoveryServer -> discoveryServer: ...
+      discoveryServer -> discoveryServer: s.makeFileMonitor
+    else 
+      discoveryServer -> discoveryServer: s.initK8SConfigStore
+      group s.initK8SConfigStore
+        discoveryServer -> discoveryServer: s.makeKubeConfigController
+        group s.makeKubeConfigController
+          discoveryServer -> discoveryServer: crdclient.New
+        end 
+        discoveryServer -> discoveryServer: s.ConfigStores = append(s.ConfigStores, configController)
+      end
+      discoveryServer -> discoveryServer: aggregateConfigController, err := configaggregate.MakeCache(s.ConfigStores)
+      discoveryServer -> discoveryServer: s.configController = aggregateConfigController
+      discoveryServer -> discoveryServer: s.addStartFunc(go s.configController.Run)
+      group s.addStartFunc
+        discoveryServer -> server: s.server.RunComponent
+        server -> server: i.components <- t
+      end
+    end
+  end
+end
+alt s.kubeclient != nil
+  discoveryServer --> discoveryServer: initSecureWebhookServer
+  discoveryServer --> discoveryServer: initSidecarInjector
+  discoveryServer --> discoveryServer: initConfigValidation
+end
 discoveryServer --> discoveryServer: initConfigValidation
 discoveryServer -> discoveryServer: initIstiodAdminServer
+discoveryServer -> discoveryServer: s.initRegistryEventHandlers
+discoveryServer -> discoveryServer: s.initDiscoveryService
+group s.initDiscoveryService
+  discoveryServer -> discoveryServer: s.addStartFunc(s.XDSServer.Start)
+  group s.addStartFunc
+    discoveryServer -> server: s.server.RunComponent
+    server -> server: i.components <- t
+  end
+  discoveryServer -> discoveryServer: s.initGrpcServer
+end
 discoveryServer -> discoveryServer: ...
-discoveryServer -> discovery
+discoveryServer -> discovery: *Server
 discovery-> discoveryServer: discoveryServer.Start(stop)
-discoveryServer -> components: s.server.Start
-components -> components: s.<component>.Run
-components -> discoveryServer
+discoveryServer -> server: s.server.Start
+server -> server: s.<component>.Run
+group s.<component>.Run
+  XDSServer -> XDSServer: XDSServer.Start
+  group XDSServer.Start
+    XDSServer -> XDSServer: go s.WorkloadEntryController.Run(stopCh)
+    XDSServer -> XDSServer: go s.handleUpdates(stopCh)
+    XDSServer -> XDSServer: go s.periodicRefreshMetrics(stopCh)
+    XDSServer -> XDSServer: go s.sendPushes(stopCh)
+  end
+end
+server -> discoveryServer
 discoveryServer -> discoveryServer: s.XDSServer.CachesSynced
 discoveryServer --> discoveryServer: s.secureGrpcServer.Serve
 discoveryServer --> discoveryServer: s.grpcServer.Serve
